@@ -950,7 +950,7 @@ if __name__ == "__main__":
 !pip install pyngrok
 from pyngrok import ngrok
 
-!ngrok authtoken 2tTQu2ArgMfx2bRNTTINr28VgsW_oaJek2gL18XbzXYyVnPa
+!ngrok authtoken 2aPFcZs54sxnKjXdBYdkxOxEDto_57dANs83CgagPtwQZGNc2
 
 !streamlit run app.py &> logs.txt &
 
