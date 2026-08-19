@@ -7,7 +7,7 @@ from app.core.config import settings
 
 def render_header() -> None:
     """Renders the top branding header and description for the application."""
-    st.markdown('<div class="brand-header">🚀 AntiGravity Summarizer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="brand-header">🚀 Text Summarization using T5 model</div>', unsafe_allow_html=True)
     st.markdown('<div class="brand-subtitle">An elegant, multi-backend AI summarization platform powered by T5 and Gemini</div>', unsafe_allow_html=True)
 
 def render_sidebar() -> Dict[str, Any]:
