@@ -62,3 +62,11 @@ def test_metrics_calculations():
     assert calculate_compression_ratio("one two three four", "one two") == 0.5
     assert calculate_compression_ratio("", "") == 0.0
     assert calculate_compression_ratio("one", "one two three") == 1.0  # maxes out at 1.0
+
+def test_validate_uploaded_file_path_traversal():
+    with pytest.raises(ValidationError, match="contains invalid path characters"):
+        validate_uploaded_file("../secret.txt", 100)
+    with pytest.raises(ValidationError, match="contains invalid path characters"):
+        validate_uploaded_file("etc/passwd.txt", 100)
+    with pytest.raises(ValidationError, match="contains invalid path characters"):
+        validate_uploaded_file("some\\path.docx", 100)

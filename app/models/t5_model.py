@@ -31,8 +31,7 @@ class T5ModelWrapper:
             else:
                 self.device = self._req_device
                 if self.device == "cuda" and not torch.cuda.is_available():
-                    logger.warning("CUDA requested but not available. Falling back to CPU.")
-                    self.device = "cpu"
+                    raise ModelLoadError("CUDA requested but CUDA is not available on this system.")
 
             logger.info(f"Moving T5 model to device: {self.device}")
             self.model.to(self.device)

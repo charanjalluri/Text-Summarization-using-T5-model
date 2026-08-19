@@ -1,3 +1,5 @@
+import pytest
+
 from app.services.text_processing import chunk_text_by_tokens, chunk_text_by_words, clean_text
 
 
@@ -61,3 +63,19 @@ def test_chunk_text_by_tokens_success():
     # decoded: "3 3", "3 5"
     chunks = chunk_text_by_tokens(text, tokenizer=tokenizer, max_tokens=2, overlap=1)
     assert chunks == ["3 3", "3 5"]
+
+def test_chunk_text_by_words_invalid_overlap():
+    with pytest.raises(ValueError, match="overlap must be non-negative"):
+        chunk_text_by_words("some text here", chunk_size=5, overlap=-1)
+    with pytest.raises(ValueError, match="overlap must be less than chunk_size"):
+        chunk_text_by_words("some text here", chunk_size=5, overlap=5)
+    with pytest.raises(ValueError, match="overlap must be less than chunk_size"):
+        chunk_text_by_words("some text here", chunk_size=5, overlap=6)
+
+def test_chunk_text_by_tokens_invalid_overlap():
+    with pytest.raises(ValueError, match="overlap must be non-negative"):
+        chunk_text_by_tokens("some text here", tokenizer=None, max_tokens=5, overlap=-1)
+    with pytest.raises(ValueError, match="overlap must be less than max_tokens"):
+        chunk_text_by_tokens("some text here", tokenizer=None, max_tokens=5, overlap=5)
+    with pytest.raises(ValueError, match="overlap must be less than max_tokens"):
+        chunk_text_by_tokens("some text here", tokenizer=None, max_tokens=5, overlap=6)

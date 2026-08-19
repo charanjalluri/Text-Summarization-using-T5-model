@@ -38,6 +38,10 @@ def chunk_text_by_words(text: str, chunk_size: int = None, overlap: int = None) 
 
     if chunk_sz <= 0:
         raise ValueError("chunk_size must be positive")
+    if ovlp < 0:
+        raise ValueError("overlap must be non-negative")
+    if ovlp >= chunk_sz:
+        raise ValueError("overlap must be less than chunk_size")
 
     words = text.split()
     if not words:
@@ -62,6 +66,13 @@ def chunk_text_by_words(text: str, chunk_size: int = None, overlap: int = None) 
 
 def chunk_text_by_tokens(text: str, tokenizer: Any, max_tokens: int = 400, overlap: int = 50) -> List[str]:
     """Token-aware text chunking. Respects tokenizer boundaries to avoid token limit errors."""
+    if max_tokens <= 0:
+        raise ValueError("max_tokens must be positive")
+    if overlap < 0:
+        raise ValueError("overlap must be non-negative")
+    if overlap >= max_tokens:
+        raise ValueError("overlap must be less than max_tokens")
+
     if not text.strip():
         return []
 

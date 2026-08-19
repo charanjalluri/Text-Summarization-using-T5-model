@@ -21,6 +21,9 @@ def validate_uploaded_file(filename: str, file_size_bytes: int) -> None:
     if not filename:
         raise ValidationError("Uploaded file lacks a valid filename.")
 
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise ValidationError("Filename contains invalid path characters (path traversal attempt).")
+
     parts = filename.split(".")
     if len(parts) < 2:
         raise ValidationError(f"Uploaded file '{filename}' lacks a valid file extension.")

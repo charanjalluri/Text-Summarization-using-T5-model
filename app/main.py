@@ -24,9 +24,16 @@ logger = get_logger(__name__)
 
 def run_app():
     """Builds and runs the Streamlit UI application."""
+    if "summary_results" not in st.session_state:
+        st.session_state.summary_results = None
+    if "metrics_data" not in st.session_state:
+        st.session_state.metrics_data = None
+    if "source_name" not in st.session_state:
+        st.session_state.source_name = None
+
     # Custom Streamlit setups
     st.set_page_config(
-        page_title="AntiGravity Summarizer - Portfolio AI",
+        page_title="Text_Summarization_Using_T5_model",
         page_icon="🧠",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -86,101 +93,118 @@ def run_app():
                 st.error(f"Failed to read file: {e}")
                 logger.error(f"Error loading file {uploaded_file.name}: {e}", exc_info=True)
 
+    # Clear session state if input text is empty (reset state)
+    if not input_text.strip():
+        st.session_state.summary_results = None
+        st.session_state.metrics_data = None
+        st.session_state.source_name = None
+
     # Process and summarize
     if st.button("🚀 Summarize Content"):
         if not input_text.strip():
             st.warning("⚠️ Input is empty. Please enter text or upload a valid document.")
-            return
+        else:
+            # Parameter reconciliation (guarantees min <= max)
+            min_len = cfg["min_length"]
+            max_len = cfg["max_length"]
+            if min_len > max_len:
+                logger.info("Reconciling parameter min_length > max_length. Adjusting min_length.")
+                min_len = max(10, max_len - 20)
 
-        # Parameter reconciliation (guarantees min <= max)
-        min_len = cfg["min_length"]
-        max_len = cfg["max_length"]
-        if min_len > max_len:
-            logger.info("Reconciling parameter min_length > max_length. Adjusting min_length.")
-            min_len = max(10, max_len - 20)
+            # Validate parameters before execution
+            try:
+                validate_inference_params(
+                    min_len,
+                    max_len,
+                    cfg["num_beams"],
+                    cfg["length_penalty"]
+                )
+            except Exception as e:
+                st.error(f"Inference Parameter Error: {e}")
+            else:
+                # Summarization execution
+                service = SummarizationService()
+                try:
+                    with st.spinner("AI model is processing summarization..."):
+                        with time_execution("Summarization Service Run") as timer:
+                            results = service.summarize(
+                                text=input_text,
+                                backend=cfg["backend"],
+                                model_name=cfg["model_name"],
+                                device=cfg["device"],
+                                style=cfg["style"],
+                                target_lang=cfg["target_lang"],
+                                min_length=min_len,
+                                max_length=max_len,
+                                num_beams=cfg["num_beams"],
+                                length_penalty=cfg["length_penalty"],
+                                gemini_api_key=cfg["gemini_api_key"]
+                            )
 
-        # Validate parameters before execution
-        try:
-            validate_inference_params(
-                min_len,
-                max_len,
-                cfg["num_beams"],
-                cfg["length_penalty"]
-            )
-        except Exception as e:
-            st.error(f"Inference Parameter Error: {e}")
-            return
+                    # Collect results metadata
+                    summary_str = results["summary"]
+                    elapsed = timer["elapsed_time"]
 
-        # Summarization execution
-        service = SummarizationService()
-        try:
-            with st.spinner("AI model is processing summarization..."):
-                with time_execution("Summarization Service Run") as timer:
-                    results = service.summarize(
-                        text=input_text,
-                        backend=cfg["backend"],
-                        model_name=cfg["model_name"],
-                        device=cfg["device"],
-                        style=cfg["style"],
-                        target_lang=cfg["target_lang"],
-                        min_length=min_len,
-                        max_length=max_len,
-                        num_beams=cfg["num_beams"],
-                        length_penalty=cfg["length_penalty"],
-                        gemini_api_key=cfg["gemini_api_key"]
-                    )
+                    if not summary_str.strip():
+                        st.error("Model execution completed, but summary output was empty.")
+                    else:
+                        # Analytics compilation
+                        output_stats = calculate_counts(summary_str)
+                        ratio = calculate_compression_ratio(input_text, summary_str)
 
-            # Collect results metadata
-            summary_str = results["summary"]
-            elapsed = timer["elapsed_time"]
+                        metrics_data = {
+                            "elapsed_time": elapsed,
+                            "compression_ratio": ratio,
+                            "device": results["device"],
+                            "model": results["model"],
+                            "output_words": output_stats["words"],
+                            "output_tokens": estimate_tokens(summary_str)
+                        }
 
-            if not summary_str.strip():
-                st.error("Model execution completed, but summary output was empty.")
-                return
+                        # Save to session state
+                        st.session_state.summary_results = results
+                        st.session_state.metrics_data = metrics_data
+                        st.session_state.source_name = source_name
 
-            # Analytics compilation
-            output_stats = calculate_counts(summary_str)
-            ratio = calculate_compression_ratio(input_text, summary_str)
+                except Exception as e:
+                    st.error(f"An error occurred during summarization: {e}")
+                    logger.error(f"Execution failure: {e}", exc_info=True)
 
-            metrics_data = {
-                "elapsed_time": elapsed,
-                "compression_ratio": ratio,
-                "device": results["device"],
-                "model": results["model"],
-                "output_words": output_stats["words"],
-                "output_tokens": estimate_tokens(summary_str)
-            }
+    # Render results from session state if they exist
+    if st.session_state.summary_results is not None:
+        results = st.session_state.summary_results
+        metrics_data = st.session_state.metrics_data
+        summary_str = results["summary"]
+        source_name = st.session_state.source_name
 
-            # Display summaries and analytical dashboards
-            render_summary_box(summary_str, results)
-            render_metrics_dashboard(metrics_data)
+        # Display summaries and analytical dashboards
+        render_summary_box(summary_str, results)
+        render_metrics_dashboard(metrics_data)
 
-            # Export Summaries
-            st.markdown("<br/>", unsafe_allow_html=True)
-            col_txt, col_pdf, _ = st.columns([2, 2, 6])
+        # Export Summaries
+        st.markdown("<br/>", unsafe_allow_html=True)
+        col_txt, col_pdf, _ = st.columns([2, 2, 6])
 
-            # Export as TXT
-            col_txt.download_button(
-                label="📥 Download TXT Summary",
-                data=summary_str,
-                file_name=f"summary_{source_name.split('.')[0]}.txt",
-                mime="text/plain"
-            )
+        # Export as TXT
+        col_txt.download_button(
+            label="📥 Download TXT Summary",
+            data=summary_str,
+            file_name=f"summary_{source_name.split('.')[0]}.txt",
+            mime="text/plain",
+            key="download_txt_btn"
+        )
 
-            # Export as PDF
-            with st.spinner("Compiling PDF summary doc..."):
-                pdf_bytes = generate_pdf_bytes(f"Summary of {source_name}", summary_str)
+        # Export as PDF
+        with st.spinner("Compiling PDF summary doc..."):
+            pdf_bytes = generate_pdf_bytes(f"Summary of {source_name}", summary_str)
 
-            col_pdf.download_button(
-                label="📥 Download PDF Summary",
-                data=pdf_bytes,
-                file_name=f"summary_{source_name.split('.')[0]}.pdf",
-                mime="application/pdf"
-            )
-
-        except Exception as e:
-            st.error(f"An error occurred during summarization: {e}")
-            logger.error(f"Execution failure: {e}", exc_info=True)
+        col_pdf.download_button(
+            label="📥 Download PDF Summary",
+            data=pdf_bytes,
+            file_name=f"summary_{source_name.split('.')[0]}.pdf",
+            mime="application/pdf",
+            key="download_pdf_btn"
+        )
 
 if __name__ == "__main__":
     import sys

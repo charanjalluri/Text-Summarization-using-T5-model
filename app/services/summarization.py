@@ -97,11 +97,15 @@ class SummarizationService:
                 for idx, chunk in enumerate(chunks):
                     logger.info(f"Summarizing chunk {idx + 1}/{chunks_count}")
                     # For chunks, generate a slightly smaller summary to fit the final combine phase
-                    chunk_max_len = max(30, int((max_length or settings.MAX_SUMMARY_TOKENS) / 2))
+                    min_len_to_use = min_length if min_length is not None else settings.MIN_SUMMARY_TOKENS
+                    max_len_to_use = max_length if max_length is not None else settings.MAX_SUMMARY_TOKENS
+                    chunk_max_len = max(min_len_to_use, int(max_len_to_use / 2))
+                    chunk_min_len = min(min_len_to_use, chunk_max_len)
+
                     chunk_sum = t5_wrapper.generate(
                         chunk,
                         max_length=chunk_max_len,
-                        min_length=min_length,
+                        min_length=chunk_min_len,
                         num_beams=num_beams,
                         length_penalty=length_penalty
                     )
