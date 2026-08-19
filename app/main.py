@@ -184,8 +184,8 @@ def run_app():
 
 if __name__ == "__main__":
     import sys
-    # Handle direct script execution vs Streamlit CLI execution
-    if len(sys.argv) == 1 or not sys.argv[0].endswith("streamlit"):
+    # If not running inside Streamlit, launch the Streamlit CLI wrapper programmatically
+    if not st.runtime.exists():
         import streamlit.web.cli as stcli
         # Programmatic launch configuration
         sys.argv = ["streamlit", "run", __file__, "--server.port", "8501", "--server.address", "0.0.0.0"]
